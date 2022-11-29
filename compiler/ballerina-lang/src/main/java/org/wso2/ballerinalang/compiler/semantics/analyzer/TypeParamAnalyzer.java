@@ -254,6 +254,8 @@ public class TypeParamAnalyzer {
                 return containsTypeParam(errorType.detailType, resolvedTypes);
             case TypeTags.TYPEDESC:
                 return containsTypeParam(((BTypedescType) type).constraint, resolvedTypes);
+            case TypeTags.TYPEREFDESC:
+                return containsTypeParam(Types.getReferredType(type), resolvedTypes);
             default:
                 return false;
         }
@@ -1051,7 +1053,7 @@ public class TypeParamAnalyzer {
             BResourceFunction resourceFunction = (BResourceFunction) expFunc;
             return new BResourceFunction(resourceFunction.funcName, invokableSymbol, matchType,
                     resourceFunction.resourcePath, resourceFunction.accessor, resourceFunction.pathParams,
-                    resourceFunction.restPathParam, expFunc.pos);
+                    resourceFunction.restPathParam, resourceFunction.resourcePathType, expFunc.pos);
         }
         return new BAttachedFunction(expFunc.funcName, invokableSymbol, matchType, expFunc.pos);
     }

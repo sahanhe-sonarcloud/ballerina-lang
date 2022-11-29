@@ -69,7 +69,7 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     OBJECT_UNINITIALIZED_FIELD("BCE2035", "object.uninitialized.field"),
     CYCLIC_TYPE_REFERENCE("BCE2036", "cyclic.type.reference"),
     ATTEMPT_REFER_NON_ACCESSIBLE_SYMBOL("BCE2037", "attempt.refer.non.accessible.symbol"),
-    ATTEMPT_EXPOSE_NON_PUBLIC_SYMBOL("BCE2038", "attempt.expose.non.public.symbol"),
+    CANNOT_USE_FIELD_ACCESS_TO_ACCESS_A_REMOTE_METHOD("BCE2038", "cannot.use.field.access.to.access.a.remote.method"),
     UNDEFINED_PARAMETER("BCE2039", "undefined.parameter"),
     ATTACHED_FUNCTIONS_MUST_HAVE_BODY("BCE2040", "attached.functions.must.have.body"),
     INIT_METHOD_IN_OBJECT_TYPE_DESCRIPTOR("BCE2041", "illegal.init.method.in.object.type.descriptor"),
@@ -84,7 +84,7 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     FIELD_WITH_DEFAULT_VALUE_ABSTRACT_OBJECT("BCE2050", "field.with.default.value.abstract.object"),
     PRIVATE_FUNC_ABSTRACT_OBJECT("BCE2051", "private.function.abstract.object"),
     EXTERN_FUNC_ABSTRACT_OBJECT("BCE2052", "extern.function.abstract.object"),
-    RESOURCE_FUNCTION_CANNOT_BE_EXTERN("BCE2053", "resource.function.cannot.be.extern"),
+    SERVICE_RESOURCE_METHOD_CANNOT_BE_EXTERN("BCE2053", "service.resource.method.cannot.be.extern"),
     OBJECT_INIT_FUNCTION_CANNOT_BE_EXTERN("BCE2054", "object.init.function.cannot.be.extern"),
     GLOBAL_VARIABLE_CYCLIC_DEFINITION("BCE2055", "global.variable.cyclic.reference"),
     CANNOT_FIND_ERROR_TYPE("BCE2056", "cannot.find.error.constructor.for.type"),
@@ -221,8 +221,8 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     ENDPOINT_INVALID_TYPE_NO_FUNCTION("BCE2408", "endpoint.invalid.type.no.function"),
     ENDPOINT_SPI_INVALID_FUNCTION("BCE2409", "endpoint.spi.invalid.function"),
 
-    REMOTE_FUNCTION_IN_NON_CLIENT_OBJECT("BCE2410", "remote.function.in.non.client.object"),
-    RESOURCE_FUNCTION_IN_NON_SERVICE_OBJECT("BCE2411", "resource.function.in.non.service.object"),
+    RESOURCE_METHODS_ARE_ONLY_ALLOWED_IN_SERVICE_OR_CLIENT_OBJECTS(
+            "BCE2411", "resource.methods.are.only.allowed.in.service.or.client.objects"),
     RESOURCE_FUNCTION_INVALID_RETURN_TYPE("BCE2412", "resource.function.invalid.return.type"),
     REMOTE_IN_NON_OBJECT_FUNCTION("BCE2413", "remote.in.non.object.function"),
     INVALID_LISTENER_VARIABLE("BCE2414", "invalid.listener.var"),
@@ -541,6 +541,7 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     CONSTANT_EXPRESSION_NOT_SUPPORTED("BCE3506", "const.expression.not.supported"),
     CONSTANT_DECLARATION_NOT_YET_SUPPORTED("BCE3507", "constant.declaration.not.yet.supported.for.type"),
     SELF_REFERENCE_CONSTANT("BCE3508", "self.reference.constant"),
+    INT_RANGE_OVERFLOW_ERROR("BCE3509", "int.range.overflow"),
 
     // Anonymous functions related codes
     ARROW_EXPRESSION_MISMATCHED_PARAMETER_LENGTH("BCE3600", "arrow.expression.mismatched.parameter.length"),
@@ -625,7 +626,7 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     MULTIPLE_INFER_TYPEDESC_PARAMS("BCE3932", "multiple.infer.typedesc.params"),
     INVALID_DEPENDENTLY_TYPED_RETURN_TYPE_WITH_INFERRED_TYPEDESC_PARAM(
             "BCE3933", "invalid.dependently.typed.return.type.with.inferred.typedesc.param"),
-    CANNOT_INFER_TYPE_FOR_PARAM("BCE3934", "cannot.infer.type.for.param"),
+    CANNOT_INFER_TYPEDESC_ARGUMENT_FROM_CET("BCE3934", "cannot.infer.typedesc.argument.from.cet"),
     CANNOT_USE_INFERRED_TYPEDESC_DEFAULT_WITH_UNREFERENCED_PARAM("BCE3935",
             "cannot.use.inferred.typedesc.default.with.unreferenced.param"),
 
@@ -696,8 +697,6 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     REMOTE_FUNCTION_IN_NON_NETWORK_OBJECT("BCE3971", "remote.function.in.non.network.object"),
     UNSUPPORTED_PATH_PARAM_TYPE("BCE3972", "unsupported.path.param.type"),
     UNSUPPORTED_REST_PATH_PARAM_TYPE("BCE3973", "unsupported.rest.path.param.type"),
-    OBJECT_TYPE_DEF_DOES_NOT_ALLOW_RESOURCE_FUNC_DECL("BCE3974",
-            "unsupported.resource.function.declaration.in.object.type"),
     SERVICE_ABSOLUTE_PATH_OR_LITERAL_IS_REQUIRED_BY_LISTENER("BCE3975",
             "service.absolute.path.or.literal.required.by.listener"),
     SERVICE_PATH_LITERAL_IS_NOT_SUPPORTED_BY_LISTENER("BCE3976", "service.path.literal.is.not.supported.by.listener"),
@@ -771,7 +770,38 @@ public enum DiagnosticErrorCode implements DiagnosticCode {
     INVALID_ISOLATED_VARIABLE_ACCESS_OUTSIDE_LOCK_IN_RECORD_DEFAULT(
             "BCE4025", "invalid.isolated.variable.access.outside.lock.in.record.default"),
     BINARY_OP_INCOMPATIBLE_TYPES_INT_FLOAT_DIVISION("BCE4026", "binary.op.incompatible.types.int.float.division"),
-    OUT_OF_RANGE("BCE4027", "numeric.literal.out.of.range")
+    CLIENT_RESOURCE_ACCESS_ACTION_IS_ONLY_ALLOWED_ON_CLIENT_OBJECTS(
+            "BCE4027", "client.resource.access.action.is.only.allowed.on.client.objects"),
+    UNDEFINED_RESOURCE("BCE4028", "undefined.resource"),
+    UNDEFINED_RESOURCE_METHOD("BCE4029", "undefined.resource.method"),
+    AMBIGUOUS_RESOURCE_ACCESS_NOT_YET_SUPPORTED("BCE4030", "ambiguous.resource.access.not.yet.supported"),
+    UNSUPPORTED_COMPUTED_RESOURCE_ACCESS_PATH_SEGMENT_TYPE("BCE4031", 
+            "unsupported.computed.resource.access.path.segment.type"),
+    UNSUPPORTED_RESOURCE_ACCESS_REST_SEGMENT_TYPE("BCE4032", "unsupported.resource.access.rest.segment.type"),
+    INVALID_RESOURCE_METHOD_RETURN_TYPE("BCE4033", "invalid.resource.method.return.type"),
+    OUT_OF_RANGE("BCE4034", "numeric.literal.out.of.range"),
+
+    INVALID_START_CHAR_CODE_IN_RANGE("BCE4035", "invalid.start.char.code.in.range"),
+    INVALID_QUANTIFIER_MINIMUM("BCE4036", "invalid.quantifier.minimum"),
+    DUPLICATE_FLAGS("BCE4037", "duplicate.flags"),
+
+    INVALID_USAGE_OF_THE_CLIENT_KEYWORD_AS_UNQUOTED_IDENTIFIER(
+            "BCE4038", "invalid.usage.of.the.client.keyword.as.an.unquoted.identifier"),
+    INVALID_NON_ANYDATA_CLIENT_DECL_ANNOTATION("BCE4039", "invalid.non.anydata.client.decl.annotation"),
+    NO_MODULE_GENERATED_FOR_CLIENT_DECL("BCE4040", "no.module.generated.for.client.decl"),
+    UNUSED_CLIENT_DECL_PREFIX("BCE4041", "unused.client.decl.prefix"),
+    UNSUPPORTED_EXPOSURE_OF_CONSTRUCT_FROM_MODULE_GENERATED_FOR_CLIENT_DECL(
+            "BCE4042", "unsupported.exposure.of.construct.from.module.generated.for.client.decl"),
+    MODULE_GENERATED_FOR_CLIENT_DECL_MUST_HAVE_A_CLIENT_OBJECT_TYPE(
+            "BCE4043", "module.generated.for.client.decl.must.have.a.client.object.type"),
+    MODULE_GENERATED_FOR_CLIENT_DECL_CANNOT_HAVE_MUTABLE_STATE(
+            "BCE4044", "module.generated.for.client.decl.cannot.have.mutable.state"),
+    CANNOT_IMPORT_MODULE_GENERATED_FOR_CLIENT_DECL(
+            "BCE4045", "cannot.import.module.generated.for.a.client.decl"),
+    CANNOT_INFER_TYPEDESC_ARGUMENT_WITHOUT_CET("BCE4046",
+            "cannot.infer.typedesc.argument.without.cet"),
+    OUTER_JOIN_MUST_BE_DECLARED_WITH_VAR(
+            "BCE4047", "outer.join.must.be.declared.with.var")        
     ;
 
     private String diagnosticId;

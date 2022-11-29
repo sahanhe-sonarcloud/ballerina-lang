@@ -34,6 +34,7 @@ import org.wso2.ballerinalang.compiler.diagnostic.BLangDiagnosticLog;
 import org.wso2.ballerinalang.compiler.semantics.analyzer.cyclefind.GlobalVariableRefAnalyzer;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolEnv;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BClientDeclarationSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BConstantSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BObjectTypeSymbol;
@@ -54,6 +55,7 @@ import org.wso2.ballerinalang.compiler.tree.BLangAnnotation;
 import org.wso2.ballerinalang.compiler.tree.BLangAnnotationAttachment;
 import org.wso2.ballerinalang.compiler.tree.BLangBlockFunctionBody;
 import org.wso2.ballerinalang.compiler.tree.BLangClassDefinition;
+import org.wso2.ballerinalang.compiler.tree.BLangClientDeclaration;
 import org.wso2.ballerinalang.compiler.tree.BLangCompilationUnit;
 import org.wso2.ballerinalang.compiler.tree.BLangErrorVariable;
 import org.wso2.ballerinalang.compiler.tree.BLangExprFunctionBody;
@@ -108,6 +110,7 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangIndexBasedAccess;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangInferredTypedescDefaultNode;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation.BLangActionInvocation;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangInvocation.BLangResourceAccessInvocation;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangIsAssignableExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLambdaFunction;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangLetExpression;
@@ -124,6 +127,7 @@ import org.wso2.ballerinalang.compiler.tree.expressions.BLangQueryExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRawTemplateLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordVarRef;
+import org.wso2.ballerinalang.compiler.tree.expressions.BLangRegExpTemplateLiteral;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangRestArgsExpression;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangServiceConstructorExpr;
 import org.wso2.ballerinalang.compiler.tree.expressions.BLangSimpleVarRef;
@@ -158,6 +162,7 @@ import org.wso2.ballerinalang.compiler.tree.matchpatterns.BLangMatchPattern;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangAssignment;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBlockStmt;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangBreak;
+import org.wso2.ballerinalang.compiler.tree.statements.BLangClientDeclarationStatement;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangCompoundAssignment;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangContinue;
 import org.wso2.ballerinalang.compiler.tree.statements.BLangDo;
@@ -726,6 +731,20 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
     @Override
     public void visit(BLangXMLNSStatement xmlnsStmt) {
         analyzeNode(xmlnsStmt.xmlnsDecl, env);
+    }
+
+    @Override
+    public void visit(BLangClientDeclaration clientDeclaration) {
+        BClientDeclarationSymbol symbol = (BClientDeclarationSymbol) clientDeclaration.symbol;
+        if (!symbol.used) {
+            BLangIdentifier prefix = clientDeclaration.prefix;
+            dlog.error(prefix.pos, DiagnosticErrorCode.UNUSED_CLIENT_DECL_PREFIX, prefix.value);
+        }
+    }
+    
+    @Override
+    public void visit(BLangClientDeclarationStatement clientDeclarationStatement) {
+        analyzeNode(clientDeclarationStatement.clientDeclaration, env);
     }
 
     @Override
@@ -1467,6 +1486,12 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
     }
 
     @Override
+    public void visit(BLangResourceAccessInvocation resourceAccessInvocation) {
+        analyzeNode(resourceAccessInvocation.resourceAccessPathSegments, env);
+        this.visit((BLangInvocation) resourceAccessInvocation);
+    }
+
+    @Override
     public void visit(BLangQueryExpr queryExpr) {
         for (BLangNode clause : queryExpr.getQueryClauses()) {
             analyzeNode(clause, env);
@@ -1673,7 +1698,7 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
         Set<BSymbol> providers = globalNodeDependsOn.computeIfAbsent(dependent, s -> new LinkedHashSet<>());
         providers.add(provider);
 
-        // Store the dependencies of functions seperately for lock optimization in later stage.
+        // Store the dependencies of functions separately for lock optimization in later stage.
         addFunctionToGlobalVarDependency(dependent, provider);
     }
 
@@ -2184,6 +2209,13 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
         }
     }
 
+    @Override
+    public void visit(BLangRegExpTemplateLiteral regExpTemplateLiteral) {
+        List<BLangExpression> interpolationsList =
+                symResolver.getListOfInterpolations(regExpTemplateLiteral.reDisjunction.sequenceList);
+        interpolationsList.forEach(interpolation -> analyzeNode(interpolation, env));
+    }
+
     /**
      * Analyze a branch and returns the set of uninitialized variables for that branch.
      * This method will not update the current uninitialized variables set.
@@ -2386,7 +2418,8 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
 
         if (types.isSubTypeOfBaseType(exprType, TypeTags.OBJECT) &&
                 isFinalFieldInAllObjects(fieldAccess.pos, exprType, fieldAccess.field.value)) {
-            dlog.error(fieldAccess.pos, DiagnosticErrorCode.CANNOT_UPDATE_FINAL_OBJECT_FIELD, fieldAccess.symbol);
+            dlog.error(fieldAccess.pos, DiagnosticErrorCode.CANNOT_UPDATE_FINAL_OBJECT_FIELD,
+                    fieldAccess.symbol.originalName);
         }
     }
 
@@ -2437,11 +2470,13 @@ public class DataflowAnalyzer extends BLangNodeVisitor {
 
     private void checkUnusedImports(List<BLangImportPackage> imports) {
         for (BLangImportPackage importStmt : imports) {
-            if (importStmt.symbol == null || importStmt.symbol.isUsed ||
-                    Names.IGNORE.value.equals(importStmt.alias.value)) {
-                continue;
+            BLangIdentifier prefix = importStmt.alias;
+            String prefixValue = prefix.value;
+            Location location = prefix.pos;
+            BPackageSymbol symbol = importStmt.symbol;
+            if (symbol != null && !symbol.isUsed && !Names.IGNORE.value.equals(prefixValue)) {
+                dlog.error(location, DiagnosticErrorCode.UNUSED_MODULE_PREFIX, prefixValue);
             }
-            dlog.error(importStmt.alias.pos, DiagnosticErrorCode.UNUSED_MODULE_PREFIX, importStmt.alias.value);
         }
     }
 

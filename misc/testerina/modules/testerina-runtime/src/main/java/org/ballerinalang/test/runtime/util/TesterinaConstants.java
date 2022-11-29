@@ -28,7 +28,7 @@ public class TesterinaConstants {
     public static final String BALLERINA_SOURCE_ROOT = "ballerina.source.root";
     public static final String TESTERINA_TEMP_DIR = ".testerina";
     public static final String TESTERINA_TEST_SUITE = "test_suit.json";
-    public static final String TESTERINA_LAUNCHER_CLASS_NAME = "org.ballerinalang.test.runtime.Main";
+    public static final String TESTERINA_LAUNCHER_CLASS_NAME = "org.ballerinalang.test.runtime.BTestMain";
     public static final String CODE_COV_GENERATOR_CLASS_NAME = "org.ballerinalang.test.runtime.CoverageMain";
     public static final String TEST_RUNTIME_JAR_PREFIX = "testerina-runtime-";
 
@@ -46,6 +46,7 @@ public class TesterinaConstants {
     public static final String EXEC_FILE_NAME = "ballerina.exec";
     public static final String AGENT_FILE_NAME = "jacocoagent.jar";
     public static final String COVERAGE_DIR = "coverage";
+    public static final String JACOCO_INSTRUMENTED_DIR = "instrumented";
     public static final String STATUS_FILE = "module_status.json";
     public static final String COVERAGE_FILE = "module_coverage.json";
     public static final String RESULTS_JSON_FILE = "test_results.json";
@@ -72,4 +73,7 @@ public class TesterinaConstants {
     public static final String JACOCO_XML_FORMAT = "xml";
     public static final String DATA_KEY_SEPARATOR = "#";
     public static final String MODULE_SEPARATOR = ":";
+
+    public static final String MOCK_FN_DELIMITER = "#";
+    public static final String MOCK_LEGACY_DELIMITER = "~";
 }

@@ -24,14 +24,13 @@ import org.ballerinalang.model.elements.MarkdownDocAttachment;
 import org.ballerinalang.model.elements.PackageID;
 import org.ballerinalang.model.symbols.SymbolOrigin;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BInvokableType;
+import org.wso2.ballerinalang.compiler.semantics.model.types.BTupleType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.BType;
 import org.wso2.ballerinalang.compiler.semantics.model.types.NamedNode;
 import org.wso2.ballerinalang.compiler.util.Name;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -322,7 +321,7 @@ public abstract class BIRNode {
         /**
          * Variable used for parameters of this function.
          */
-        public Map<BIRFunctionParameter, List<BIRBasicBlock>>  parameters;
+        public List<BIRFunctionParameter>  parameters;
 
         /**
          * List of basic blocks in this function.
@@ -350,10 +349,22 @@ public abstract class BIRNode {
 
         public Set<BIRGlobalVariableDcl> dependentGlobalVars = new TreeSet<>();
 
+        // Below fields will only be available on resource functions
+        // TODO: consider creating a sub class for resource functions issue: #36964
+        public List<BIRVariableDcl> pathParams;
+        
+        public BIRVariableDcl restPathParam;
+        
+        public List<Name> resourcePath;
+        
+        public Name accessor;
+        
+        public BTupleType resourcePathType;
+
         public BIRFunction(Location pos, Name name, Name originalName, long flags, SymbolOrigin origin,
                            BInvokableType type, List<BIRParameter> requiredParams, BIRVariableDcl receiver,
                            BIRParameter restParam, int argsCount, List<BIRVariableDcl> localVars,
-                           BIRVariableDcl returnVariable, Map<BIRFunctionParameter, List<BIRBasicBlock>> parameters,
+                           BIRVariableDcl returnVariable, List<BIRFunctionParameter> parameters,
                            List<BIRBasicBlock> basicBlocks, List<BIRErrorEntry> errorTable, Name workerName,
                            ChannelDetails[] workerChannels,
                            List<BIRAnnotationAttachment> annotAttachments,
@@ -389,7 +400,7 @@ public abstract class BIRNode {
             this.flags = flags;
             this.type = type;
             this.localVars = new ArrayList<>();
-            this.parameters = new LinkedHashMap<>();
+            this.parameters = new ArrayList<>();
             this.requiredParams = new ArrayList<>();
             this.basicBlocks = new ArrayList<>();
             this.errorTable = new ArrayList<>();

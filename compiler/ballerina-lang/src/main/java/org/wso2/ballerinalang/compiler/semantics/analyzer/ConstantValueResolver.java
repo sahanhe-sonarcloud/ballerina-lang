@@ -81,6 +81,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import java.util.function.BiFunction;
 
 import static org.ballerinalang.model.symbols.SymbolOrigin.VIRTUAL;
@@ -107,6 +108,7 @@ public class ConstantValueResolver extends BLangNodeVisitor {
     private ArrayList<BConstantSymbol> resolvingConstants = new ArrayList<>();
     private HashSet<BConstantSymbol> unresolvableConstants = new HashSet<>();
     private HashMap<BSymbol, BLangTypeDefinition> createdTypeDefinitions = new HashMap<>();
+    private Stack<String> anonTypeNameSuffixes = new Stack<>();
 
     private ConstantValueResolver(CompilerContext context) {
         context.put(CONSTANT_VALUE_RESOLVER_KEY, this);
@@ -144,7 +146,9 @@ public class ConstantValueResolver extends BLangNodeVisitor {
         this.resolvingConstants.add(this.currentConstSymbol);
         this.currentConstSymbol.value = constructBLangConstantValue(constant.expr);
         this.resolvingConstants.remove(this.currentConstSymbol);
+        this.anonTypeNameSuffixes.push(constant.name.value);
         updateConstantType(constant);
+        this.anonTypeNameSuffixes.pop();
         checkUniqueness(constant);
         unresolvedConstants.remove(this.currentConstSymbol);
         this.currentConstSymbol = tempCurrentConstSymbol;
@@ -307,6 +311,8 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                     return calculateMultiplication(lhs, rhs);
                 case DIV:
                     return calculateDivision(lhs, rhs);
+                case MOD:
+                    return calculateMod(lhs, rhs);
                 case BITWISE_AND:
                     return calculateBitWiseOp(lhs, rhs, (a, b) -> a & b);
                 case BITWISE_OR:
@@ -360,7 +366,7 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     private BLangConstantValue calculateBitWiseOp(BLangConstantValue lhs, BLangConstantValue rhs,
                                                   BiFunction<Long, Long, Long> func) {
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
                 Long val = func.apply((Long) lhs.value, (Long) rhs.value);
                 return new BLangConstantValue(val, this.currentConstSymbol.type);
@@ -372,12 +378,15 @@ public class ConstantValueResolver extends BLangNodeVisitor {
     }
 
     private BLangConstantValue calculateAddition(BLangConstantValue lhs, BLangConstantValue rhs) {
-        // TODO : Handle overflow in numeric values.
         Object result = null;
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
             case TypeTags.BYTE: // Byte will be a compiler error.
-                result = (Long) lhs.value + (Long) rhs.value;
+                try {
+                    result = Math.addExact((Long) lhs.value, (Long) rhs.value);
+                } catch (ArithmeticException ae) {
+                    dlog.error(currentPos, DiagnosticErrorCode.INT_RANGE_OVERFLOW_ERROR);
+                }
                 break;
             case TypeTags.FLOAT:
                 result = String.valueOf(Double.parseDouble(String.valueOf(lhs.value))
@@ -387,7 +396,8 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                 BigDecimal lhsDecimal = new BigDecimal(String.valueOf(lhs.value), MathContext.DECIMAL128);
                 BigDecimal rhsDecimal = new BigDecimal(String.valueOf(rhs.value), MathContext.DECIMAL128);
                 BigDecimal resultDecimal = lhsDecimal.add(rhsDecimal, MathContext.DECIMAL128);
-                result = resultDecimal.toPlainString();
+                resultDecimal = types.getValidDecimalNumber(currentPos, resultDecimal);
+                result = resultDecimal != null ? resultDecimal.toPlainString() : null;
                 break;
             case TypeTags.STRING:
                 result = String.valueOf(lhs.value) + String.valueOf(rhs.value);
@@ -398,10 +408,14 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     private BLangConstantValue calculateSubtract(BLangConstantValue lhs, BLangConstantValue rhs) {
         Object result = null;
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
             case TypeTags.BYTE: // Byte will be a compiler error.
-                result = (Long) lhs.value - (Long) rhs.value;
+                try {
+                    result = Math.subtractExact((Long) lhs.value, (Long) rhs.value);
+                } catch (ArithmeticException ae) {
+                    dlog.error(currentPos, DiagnosticErrorCode.INT_RANGE_OVERFLOW_ERROR);
+                }
                 break;
             case TypeTags.FLOAT:
                 result = String.valueOf(Double.parseDouble(String.valueOf(lhs.value))
@@ -411,19 +425,23 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                 BigDecimal lhsDecimal = new BigDecimal(String.valueOf(lhs.value), MathContext.DECIMAL128);
                 BigDecimal rhsDecimal = new BigDecimal(String.valueOf(rhs.value), MathContext.DECIMAL128);
                 BigDecimal resultDecimal = lhsDecimal.subtract(rhsDecimal, MathContext.DECIMAL128);
-                result = resultDecimal.toPlainString();
+                resultDecimal = types.getValidDecimalNumber(currentPos, resultDecimal);
+                result = resultDecimal != null ? resultDecimal.toPlainString() : null;
                 break;
         }
         return new BLangConstantValue(result, currentConstSymbol.type);
     }
 
     private BLangConstantValue calculateMultiplication(BLangConstantValue lhs, BLangConstantValue rhs) {
-        // TODO : Handle overflow in numeric values.
         Object result = null;
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
             case TypeTags.BYTE: // Byte will be a compiler error.
-                result = (Long) lhs.value * (Long) rhs.value;
+                try {
+                    result = Math.multiplyExact((Long) lhs.value, (Long) rhs.value);
+                } catch (ArithmeticException ae) {
+                    dlog.error(currentPos, DiagnosticErrorCode.INT_RANGE_OVERFLOW_ERROR);
+                }
                 break;
             case TypeTags.FLOAT:
                 result = String.valueOf(Double.parseDouble(String.valueOf(lhs.value))
@@ -433,7 +451,8 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                 BigDecimal lhsDecimal = new BigDecimal(String.valueOf(lhs.value), MathContext.DECIMAL128);
                 BigDecimal rhsDecimal = new BigDecimal(String.valueOf(rhs.value), MathContext.DECIMAL128);
                 BigDecimal resultDecimal = lhsDecimal.multiply(rhsDecimal, MathContext.DECIMAL128);
-                result = resultDecimal.toPlainString();
+                resultDecimal = types.getValidDecimalNumber(currentPos, resultDecimal);
+                result = resultDecimal != null ? resultDecimal.toPlainString() : null;
                 break;
         }
         return new BLangConstantValue(result, currentConstSymbol.type);
@@ -441,9 +460,13 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     private BLangConstantValue calculateDivision(BLangConstantValue lhs, BLangConstantValue rhs) {
         Object result = null;
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
             case TypeTags.BYTE: // Byte will be a compiler error.
+                if ((Long) lhs.value == Long.MIN_VALUE && (Long) rhs.value == -1) {
+                    dlog.error(currentPos, DiagnosticErrorCode.INT_RANGE_OVERFLOW_ERROR);
+                    return new BLangConstantValue(null, this.currentConstSymbol.type);
+                }
                 result = (Long) ((Long) lhs.value / (Long) rhs.value);
                 break;
             case TypeTags.FLOAT:
@@ -454,16 +477,16 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                 BigDecimal lhsDecimal = new BigDecimal(String.valueOf(lhs.value), MathContext.DECIMAL128);
                 BigDecimal rhsDecimal = new BigDecimal(String.valueOf(rhs.value), MathContext.DECIMAL128);
                 BigDecimal resultDecimal = lhsDecimal.divide(rhsDecimal, MathContext.DECIMAL128);
-                result = resultDecimal.toPlainString();
+                resultDecimal = types.getValidDecimalNumber(currentPos, resultDecimal);
+                result = resultDecimal != null ? resultDecimal.toPlainString() : null;
                 break;
         }
         return new BLangConstantValue(result, currentConstSymbol.type);
     }
 
-    // TODO : Not working at the moment.
     private BLangConstantValue calculateMod(BLangConstantValue lhs, BLangConstantValue rhs) {
         Object result = null;
-        switch (this.currentConstSymbol.type.tag) {
+        switch (Types.getReferredType(this.currentConstSymbol.type).tag) {
             case TypeTags.INT:
             case TypeTags.BYTE: // Byte will be a compiler error.
                 result = (Long) ((Long) lhs.value % (Long) rhs.value);
@@ -483,6 +506,10 @@ public class ConstantValueResolver extends BLangNodeVisitor {
     }
 
     private Object calculateNegationForInt(BLangConstantValue value) {
+        if ((Long) (value.value) == Long.MIN_VALUE) {
+            dlog.error(currentPos, DiagnosticErrorCode.INT_RANGE_OVERFLOW_ERROR);
+            return new BLangConstantValue(null, this.currentConstSymbol.type);
+        }
         return -1 * ((Long) (value.value));
     }
 
@@ -519,7 +546,7 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     private BLangConstantValue calculateBitWiseComplement(BLangConstantValue value) {
         Object result = null;
-        if (this.currentConstSymbol.type.tag == TypeTags.INT) {
+        if (Types.getReferredType(this.currentConstSymbol.type).tag == TypeTags.INT) {
             result = ~((Long) (value.value));
         }
         return new BLangConstantValue(result, currentConstSymbol.type);
@@ -527,7 +554,7 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     private BLangConstantValue calculateBooleanComplement(BLangConstantValue value) {
         Object result = null;
-        if (this.currentConstSymbol.type.tag == TypeTags.BOOLEAN) {
+        if (Types.getReferredType(this.currentConstSymbol.type).tag == TypeTags.BOOLEAN) {
             result = !((Boolean) (value.value));
         }
         return new BLangConstantValue(result, currentConstSymbol.type);
@@ -535,6 +562,12 @@ public class ConstantValueResolver extends BLangNodeVisitor {
 
     BLangConstantValue constructBLangConstantValueWithExactType(BLangExpression expression,
                                                                 BConstantSymbol constantSymbol, SymbolEnv env) {
+        return constructBLangConstantValueWithExactType(expression, constantSymbol, env, new Stack<>());
+    }
+
+    BLangConstantValue constructBLangConstantValueWithExactType(BLangExpression expression,
+                                                                BConstantSymbol constantSymbol, SymbolEnv env,
+                                                                Stack<String> anonTypeNameSuffixes) {
         BLangConstantValue value = constructBLangConstantValue(expression);
         constantSymbol.value = value;
 
@@ -542,6 +575,7 @@ public class ConstantValueResolver extends BLangNodeVisitor {
             return value;
         }
 
+        this.anonTypeNameSuffixes = anonTypeNameSuffixes;
         updateConstantType(constantSymbol, expression, env);
         return value;
     }
@@ -751,7 +785,6 @@ public class ConstantValueResolver extends BLangNodeVisitor {
         type.restFieldType = new BNoType(TypeTags.NONE);
         BLangTypeDefinition typeDefinition = TypeDefBuilderHelper.createTypeDefinitionForTSymbol(null,
                 typeDefinitionSymbol, recordTypeNode, env);
-        typeDefinition.pos = pos;
         typeDefinition.symbol.scope = new Scope(typeDefinition.symbol);
         typeDefinition.symbol.type = type;
         typeDefinition.flagSet = new HashSet<>();
@@ -790,7 +823,8 @@ public class ConstantValueResolver extends BLangNodeVisitor {
             }
         }
 
-        Name genName = Names.fromString(anonymousModelHelper.getNextAnonymousTypeKey(env.enclPkg.packageID));
+        Name genName = Names.fromString(anonymousModelHelper.getNextAnonymousTypeKey(env.enclPkg.packageID,
+                this.anonTypeNameSuffixes));
         BRecordTypeSymbol recordTypeSymbol = new BRecordTypeSymbol(SymTag.RECORD,
                                                                    constantSymbol.flags | Flags.ANONYMOUS, genName,
                                                                    constantSymbol.pkgID,
@@ -852,8 +886,10 @@ public class ConstantValueResolver extends BLangNodeVisitor {
                 key = keyValuePair.key.toString();
                 newSymbol = new BVarSymbol(constantSymbol.flags, Names.fromString(key), constantSymbol.pkgID,
                                            null, constantSymbol.owner, pos, VIRTUAL);
+                this.anonTypeNameSuffixes.push(key);
                 BType newType = checkType(exprValueField, constantSymbol, constValueMap.get(key).value,
                                           constValueMap.get(key).type, pos, env);
+                this.anonTypeNameSuffixes.pop();
                 if (newType == null) {
                     return false;
                 }

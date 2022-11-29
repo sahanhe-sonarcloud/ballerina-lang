@@ -558,10 +558,10 @@
     {
       "label": "cause = ...",
       "kind": "Snippet",
-      "detail": "cause = error (\"\")",
+      "detail": "cause = error(\"\")",
       "sortText": "AR",
       "filterText": "cause",
-      "insertText": "cause = ${1:error (\"\")}",
+      "insertText": "cause = ${1:error(\"\")}",
       "insertTextFormat": "Snippet"
     },
     {
@@ -711,6 +711,39 @@
       "detail": "type",
       "sortText": "BR",
       "insertText": "function",
+      "insertTextFormat": "Snippet"
+    },
+    {
+      "label": "ballerina/lang.regexp",
+      "kind": "Module",
+      "detail": "Module",
+      "sortText": "BR",
+      "filterText": "regexp",
+      "insertText": "regexp",
+      "insertTextFormat": "Snippet",
+      "additionalTextEdits": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/lang.regexp;\n"
+        }
+      ]
+    },
+    {
+      "label": "re ``",
+      "kind": "Snippet",
+      "detail": "Snippet",
+      "sortText": "BP",
+      "filterText": "re ``",
+      "insertText": "re `${1}`",
       "insertTextFormat": "Snippet"
     }
   ]

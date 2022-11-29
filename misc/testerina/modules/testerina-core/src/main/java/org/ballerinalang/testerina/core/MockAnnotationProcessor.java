@@ -69,8 +69,9 @@ public class MockAnnotationProcessor extends AbstractCompilerPlugin {
     private static final String MOCK_ANNOTATION_NAME = "Mock";
     private static final String MODULE = "moduleName";
     private static final String FUNCTION = "functionName";
-    private static final String MOCK_ANNOTATION_DELIMITER = "#";
-    private static final String MOCK_FN_DELIMITER = "~";
+    private static final String MOCK_FN_DELIMITER = "#";
+    private static final String MOCK_LEGACY_DELIMITER = "~";
+    private static final String MODULE_DELIMITER = "§";
 
     private CompilerContext compilerContext;
     private DiagnosticLog diagnosticLog;
@@ -128,15 +129,16 @@ public class MockAnnotationProcessor extends AbstractCompilerPlugin {
                                 (BLangTestablePackage) ((BLangSimpleVariable) simpleVariableNode).parent;
                         // Value added to the map '<packageId> # <functionToMock> --> <MockFnObjectName>`
                         bLangTestablePackage.addMockFunction(
-                                functionToMockID + MOCK_ANNOTATION_DELIMITER + annotationValues[1],
+                                functionToMockID + MOCK_FN_DELIMITER + annotationValues[1],
                                 mockFnObjectName);
 
                         if (functionToMockID != null) {
                             // Adding `<className> # <functionToMock> --> <MockFnObjectName>` to registry
                             String className = getQualifiedClassName(bLangTestablePackage,
                                     functionToMockID.toString(), annotationValues[1]);
-                            registry.addMockFunctionsSourceMap(className + MOCK_ANNOTATION_DELIMITER +
-                                            annotationValues[1], mockFnObjectName);
+                            registry.addMockFunctionsSourceMap(bLangTestablePackage.packageID.getName().toString()
+                                    + MODULE_DELIMITER + className + MOCK_FN_DELIMITER + annotationValues[1],
+                                    mockFnObjectName);
                         }
                     }
                 } else {
@@ -205,7 +207,8 @@ public class MockAnnotationProcessor extends AbstractCompilerPlugin {
                     PackageID functionToMockID = getPackageID(vals[0]);
                     if (functionToMockID == null) {
                         diagnosticLog.logDiagnostic(DiagnosticSeverity.ERROR, attachmentNode.getPosition(),
-                                "could not find module specified ");
+                                "could not find module specified");
+                        break;
                     }
 
                     BType functionToMockType = getFunctionType(packageEnvironmentMap, functionToMockID, vals[1]);
@@ -217,24 +220,27 @@ public class MockAnnotationProcessor extends AbstractCompilerPlugin {
                             diagnosticLog.logDiagnostic(DiagnosticSeverity.ERROR, ((BLangFunction) functionNode).pos,
                                     "incompatible types: expected " + functionToMockType.toString()
                                             + " but found " + mockFunctionType.toString());
+                            break;
                         }
                     } else {
                         diagnosticLog.logDiagnostic(DiagnosticSeverity.ERROR, attachmentNode.getPosition(),
                                 "could not find functions in module");
+                        break;
                     }
 
                     //Creating a bLangTestablePackage to add a mock function
                     BLangTestablePackage bLangTestablePackage =
                             (BLangTestablePackage) ((BLangFunction) functionNode).parent;
-                    bLangTestablePackage.addMockFunction(functionToMockID + MOCK_FN_DELIMITER + vals[1],
+                    bLangTestablePackage.addMockFunction(functionToMockID + MOCK_LEGACY_DELIMITER + vals[1],
                             functionName);
 
                     if (functionToMockID != null) {
                         // Adding `<className> # <functionToMock> --> <MockFnObjectName>` to registry
                         String className = getQualifiedClassName(bLangTestablePackage,
                                 functionToMockID.toString(), vals[1]);
-                        registry.addMockFunctionsSourceMap(className + MOCK_FN_DELIMITER + vals[1],
-                                functionName);
+                        vals[1] = vals[1].replaceAll("\\\\", "");
+                        registry.addMockFunctionsSourceMap(bLangTestablePackage.packageID.getName().toString()
+                                        + MODULE_DELIMITER + className + MOCK_LEGACY_DELIMITER + vals[1], functionName);
                     }
                 }
             }
