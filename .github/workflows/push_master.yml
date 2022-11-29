@@ -143,6 +143,7 @@ jobs:
         if: "${{ env.SONAR_TOKEN != '' }}"
         run: |
           export DISPLAY=':99.0'
+          export SONAR_SCANNER_OPTS="-Xmx4096m"
           /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           ./gradlew build sonarqube --info --max-workers=2 --scan --no-daemon -x test -x check 
           find ~/.gradle/caches/ -name "*.lock" -type f -delete
